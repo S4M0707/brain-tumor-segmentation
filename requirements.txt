@@ -1,0 +1,6 @@
+flasgger
+imageio
+matplotlib
+opencv-python
+nibabel
+tensorflow
