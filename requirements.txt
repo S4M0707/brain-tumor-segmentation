@@ -1,4 +1,6 @@
-flasgger
+fastapi
+uvicorn
+python-multipart
 imageio
 matplotlib
 opencv-python

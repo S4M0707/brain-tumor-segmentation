@@ -144,7 +144,8 @@ class BrainTumorModel:
 
 
             gif_filename = os.path.join('outputs', 'mri_3d.gif')
-            imageio.mimsave(gif_filename, frames, duration=0.1)
+            imageio.mimsave(gif_filename, frames, duration=0.1, loop=0)
+
 
             return gif_filename
         
