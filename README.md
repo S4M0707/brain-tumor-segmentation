@@ -29,7 +29,7 @@ This project utilizes a pre-trained U-Net model to segment brain tumors from MRI
 
 1.  Clone the repository: `git clone git@github.com:S4M0707/brain-tumor-segmentation.git`
 2.  Install dependencies: `pip install -r requirements.txt`
-3.  Run the FastAPI server: `uvicorn main:app --host 127.0.0.1 --port 8000`
+3.  Run the FastAPI server: `uvicorn main:app`
 
 
 ## Usage
@@ -57,7 +57,7 @@ This project is licensed under the MIT License.
 
 ## Project Structure
 
-*   `app.py`: FastAPI application
+*   `main.py`: FastAPI application
 *   `utils/brain_tumor.py`: Brain tumor segmentation model
 *   `index.html`: Frontend interface
 *   `requirements.txt`: Dependencies
