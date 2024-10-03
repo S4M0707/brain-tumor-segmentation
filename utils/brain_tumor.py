@@ -5,8 +5,6 @@ import cv2
 import os
 import imageio
 import matplotlib.pyplot as plt
-from tensorflow.keras import backend as K
-from tensorflow.keras.optimizers import Adam
 
 class BrainTumorModel:
     """
@@ -34,7 +32,7 @@ class BrainTumorModel:
             'dice_coef_core': self.dice_coef_core,
             'dice_coef_edema': self.dice_coef_edema,
             'dice_coef_enhancing': self.dice_coef_enhancing,
-            'Adam': Adam
+            'Adam': tf.keras.optimizers.Adam(learning_rate=0.001)
         })
 
         self.VOLUME_SLICES = 100
@@ -49,21 +47,21 @@ class BrainTumorModel:
 
         print('---INITALIZATION DONE---')
 
-    def dice_coef_healthy(self, y_true, y_pred, epsilon=K.epsilon()):
-        intersection = K.sum(K.abs(y_true[:,:,:,0] * y_pred[:,:,:,0]))
-        return (2. * intersection + epsilon) / (K.sum(K.square(y_true[:,:,:,0])) + K.sum(K.square(y_pred[:,:,:,0])) + epsilon)
+    def dice_coef_healthy(self, y_true, y_pred, epsilon=tf.keras.backend.epsilon()):
+        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true[:,:,:,0] * y_pred[:,:,:,0]))
+        return (2. * intersection + epsilon) / (tf.keras.backend.sum(tf.keras.backend.square(y_true[:,:,:,0])) + tf.keras.backend.sum(tf.keras.backend.square(y_pred[:,:,:,0])) + epsilon)
 
-    def dice_coef_core(self, y_true, y_pred, epsilon=K.epsilon()):
-        intersection = K.sum(K.abs(y_true[:,:,:,1] * y_pred[:,:,:,1]))
-        return (2. * intersection + epsilon) / (K.sum(K.square(y_true[:,:,:,1])) + K.sum(K.square(y_pred[:,:,:,1])) + epsilon)
+    def dice_coef_core(self, y_true, y_pred, epsilon=tf.keras.backend.epsilon()):
+        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true[:,:,:,1] * y_pred[:,:,:,1]))
+        return (2. * intersection + epsilon) / (tf.keras.backend.sum(tf.keras.backend.square(y_true[:,:,:,1])) + tf.keras.backend.sum(tf.keras.backend.square(y_pred[:,:,:,1])) + epsilon)
 
-    def dice_coef_edema(self, y_true, y_pred, epsilon=K.epsilon()):
-        intersection = K.sum(K.abs(y_true[:,:,:,2] * y_pred[:,:,:,2]))
-        return (2. * intersection + epsilon) / (K.sum(K.square(y_true[:,:,:,2])) + K.sum(K.square(y_pred[:,:,:,2])) + epsilon)
+    def dice_coef_edema(self, y_true, y_pred, epsilon=tf.keras.backend.epsilon()):
+        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true[:,:,:,2] * y_pred[:,:,:,2]))
+        return (2. * intersection + epsilon) / (tf.keras.backend.sum(tf.keras.backend.square(y_true[:,:,:,2])) + tf.keras.backend.sum(tf.keras.backend.square(y_pred[:,:,:,2])) + epsilon)
 
-    def dice_coef_enhancing(self, y_true, y_pred, epsilon=K.epsilon()):
-        intersection = K.sum(K.abs(y_true[:,:,:,3] * y_pred[:,:,:,3]))
-        return (2. * intersection + epsilon) / (K.sum(K.square(y_true[:,:,:,3])) + K.sum(K.square(y_pred[:,:,:,3])) + epsilon)
+    def dice_coef_enhancing(self, y_true, y_pred, epsilon=tf.keras.backend.epsilon()):
+        intersection = tf.keras.backend.sum(tf.keras.backend.abs(y_true[:,:,:,3] * y_pred[:,:,:,3]))
+        return (2. * intersection + epsilon) / (tf.keras.backend.sum(tf.keras.backend.square(y_true[:,:,:,3])) + tf.keras.backend.sum(tf.keras.backend.square(y_pred[:,:,:,3])) + epsilon)
 
     def dice_coefficient_multiclass(self, y_true, y_pred):
         healthy = self.dice_coef_healthy(y_true, y_pred)
@@ -78,19 +76,19 @@ class BrainTumorModel:
         return 0.7 * dice_loss + 0.3 * cross_entropy_loss
 
     def precision(self, y_true, y_pred):
-        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
-        return true_positives / (predicted_positives + K.epsilon())
+        true_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_pred, 0, 1)))
+        return true_positives / (predicted_positives + tf.keras.backend.epsilon())
 
     def sensitivity(self, y_true, y_pred):
-        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
-        return true_positives / (possible_positives + K.epsilon())
+        true_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true * y_pred, 0, 1)))
+        possible_positives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(y_true, 0, 1)))
+        return true_positives / (possible_positives + tf.keras.backend.epsilon())
 
     def specificity(self, y_true, y_pred):
-        true_negatives = K.sum(K.round(K.clip((1 - y_true) * (1 - y_pred), 0, 1)))
-        possible_negatives = K.sum(K.round(K.clip(1 - y_true, 0, 1)))
-        return true_negatives / (possible_negatives + K.epsilon())
+        true_negatives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip((1 - y_true) * (1 - y_pred), 0, 1)))
+        possible_negatives = tf.keras.backend.sum(tf.keras.backend.round(tf.keras.backend.clip(1 - y_true, 0, 1)))
+        return true_negatives / (possible_negatives + tf.keras.backend.epsilon())
 
     def make_prediction(self, flair, t1ce):
         """
