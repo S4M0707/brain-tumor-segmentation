@@ -112,7 +112,7 @@ class BrainTumorModel:
             print("Error:", e)
             return None
 
-    def create_gif(self, flair, mri_data):
+    def create_gif(self, gif_filename, flair, mri_data = None):
         try:
             flair_reshape = cv2.resize(flair[:, :, self.VOLUME_START_AT: self.VOLUME_START_AT + 100], (self.IMG_SIZE, self.IMG_SIZE))
             colors = {
@@ -123,27 +123,26 @@ class BrainTumorModel:
             }
 
             frames = []
-            for i in range(mri_data.shape[0]):
+            for i in range(100):
                 x = flair_reshape[:, :, i] * 10e9
-                y = mri_data[i, :, :]
 
                 x_normalized = cv2.normalize(x, None, 0, 255, cv2.NORM_MINMAX)
                 x_uint8 = np.uint8(x_normalized)
-                              
-                colored_segmentation = np.zeros((self.IMG_SIZE, self.IMG_SIZE, 3), dtype=np.uint8)
-                for class_idx, color in colors.items():
-                    colored_segmentation[y == class_idx] = color
-                
                 image_bgr = cv2.cvtColor(x_uint8, cv2.COLOR_GRAY2BGR)
 
-                overlay = cv2.addWeighted(image_bgr, 0.6, colored_segmentation, 0.4, 0)
+                if mri_data is None:
+                    frames.append(image_bgr)
+                else:
+                    y = mri_data[i, :, :]
+                    colored_segmentation = np.zeros((self.IMG_SIZE, self.IMG_SIZE, 3), dtype=np.uint8)
+                    for class_idx, color in colors.items():
+                        colored_segmentation[y == class_idx] = color
 
-                frames.append(overlay)
+                    overlay = cv2.addWeighted(image_bgr, 0.6, colored_segmentation, 0.4, 0)
 
+                    frames.append(overlay)
 
-            gif_filename = os.path.join('outputs', 'mri_3d.gif')
             imageio.mimsave(gif_filename, frames, duration=0.1, loop=0)
-
 
             return gif_filename
         
