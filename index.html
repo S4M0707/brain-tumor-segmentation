@@ -1,88 +1,147 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brain Tumor Segmentation</title>
     <style>
         body {
             font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
-
-        #upload-form {
-            width: 50%;
-            margin: 40px auto;
+        .container {
+            background-color: white;
             padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 10px;
+            border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: center;
         }
-
-        #upload-form input[type="file"] {
-            display: block;
+        h2 {
             margin-bottom: 20px;
         }
-
-        #upload-form button[type="submit"] {
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+        button {
             background-color: #4CAF50;
-            color: #fff;
-            padding: 10px 20px;
+            color: white;
             border: none;
+            padding: 10px;
             border-radius: 5px;
             cursor: pointer;
         }
-
-        #upload-form button[type="submit"]:hover {
-            background-color: #3e8e41;
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+        }
+        img {
+            margin: 10px 0;
+            max-width: 100%;
         }
     </style>
 </head>
-
 <body>
-    <h1>Brain Tumor Segmentation</h1>
-    <form id="upload-form" enctype="multipart/form-data">
-        <input type="file" name="flair" accept=".nii">
-        <input type="file" name="t1ce" accept=".nii">
+
+<div class="container">
+    <h2>Upload MRI Scans</h2>
+    <form id="uploadForm">
+        <label for="flair">FLAIR MRI:</label>
+        <input type="file" id="flair" name="flair" accept=".nii,.nii.gz" required><br>
+        <label for="t1ce">T1CE MRI:</label>
+        <input type="file" id="t1ce" name="t1ce" accept=".nii,.nii.gz" required><br><br>
         <button type="submit">Submit</button>
     </form>
+
     <div id="result"></div>
+</div>
 
-    <script>
-        const form = document.getElementById('upload-form');
-        const resultDiv = document.getElementById('result');
+<script>
+    const form = document.getElementById('uploadForm');
+    const resultDiv = document.getElementById('result');
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const flairFile = form.flair.files[0];
-            const t1ceFile = form.t1ce.files[0];
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
 
-            if (!flairFile || !t1ceFile) {
-                alert('Please select both FLAIR and T1CE files');
-                return;
+        const flair = document.getElementById('flair').files[0];
+        const t1ce = document.getElementById('t1ce').files[0];
+        
+        if (!flair || !t1ce) {
+            resultDiv.innerHTML = '<p style="color:red;">Please upload both FLAIR and T1CE MRI files.</p>';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('flair', flair);
+        formData.append('t1ce', t1ce);
+
+        const URI = 'http://localhost:8000';
+
+        try {
+            // Upload files
+            const uploadResponse = await fetch(URI + '/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('Failed to upload files');
             }
 
-            const formData = new FormData();
-            formData.append('flair', flairFile);
-            formData.append('t1ce', t1ceFile);
+            const uploadResult = await uploadResponse.json();
+            const flair_pth = uploadResult.flair_pth;
+            const t1ce_pth = uploadResult.t1ce_pth;
 
-            try {
-                const response = await fetch('http://127.0.0.1:8000/predict', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const gifBlob = await response.blob();
-                    const gifUrl = URL.createObjectURL(gifBlob);
-                    resultDiv.innerHTML = `<img src="${gifUrl}" width="100%">`;
-                } else {
-                    const error = await response.text();
-                    alert(`Error: ${error}`);
-                }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
+            // Call /get_gif for FLAIR
+            const flairGifResponse = await fetch(URI + `/get_gif?pth=${encodeURIComponent(flair_pth)}`);
+            if (!flairGifResponse.ok) {
+                throw new Error('Failed to fetch FLAIR GIF');
             }
-        });
-    </script>
+            const flairGifBlob = await flairGifResponse.blob();
+            const flairGifUrl = URL.createObjectURL(flairGifBlob);
+            const flairGifImage = document.createElement('img');
+            flairGifImage.src = flairGifUrl;
+            resultDiv.innerHTML = '<p>FLAIR MRI GIF:</p>';
+            resultDiv.appendChild(flairGifImage);
+
+            // Call /get_gif for T1CE
+            const t1ceGifResponse = await fetch(URI + `/get_gif?pth=${encodeURIComponent(t1ce_pth)}`);
+            if (!t1ceGifResponse.ok) {
+                throw new Error('Failed to fetch T1CE GIF');
+            }
+            const t1ceGifBlob = await t1ceGifResponse.blob();
+            const t1ceGifUrl = URL.createObjectURL(t1ceGifBlob);
+            const t1ceGifImage = document.createElement('img');
+            t1ceGifImage.src = t1ceGifUrl;
+            resultDiv.innerHTML += '<p>T1CE MRI GIF:</p>';
+            resultDiv.appendChild(t1ceGifImage);
+
+            // Call /predict for segmentation
+            const predictResponse = await fetch(URI + `/predict?flair_pth=${encodeURIComponent(flair_pth)}&t1ce_pth=${encodeURIComponent(t1ce_pth)}`);
+            if (!predictResponse.ok) {
+                throw new Error('Prediction failed');
+            }
+
+            const predictGifBlob = await predictResponse.blob();
+            const predictGifUrl = URL.createObjectURL(predictGifBlob);
+            const predictGifImage = document.createElement('img');
+            predictGifImage.src = predictGifUrl;
+            resultDiv.innerHTML += '<p>Segmentation Result GIF:</p>';
+            resultDiv.appendChild(predictGifImage);
+
+        } catch (error) {
+            resultDiv.innerHTML = `<p style="color:red;">${error.message}</p>`;
+        }
+    });
+</script>
+
 </body>
-
 </html>
