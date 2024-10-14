@@ -6,8 +6,8 @@
     <title>Brain Tumor Segmentation</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f8ff;
             margin: 0;
             padding: 0;
             display: flex;
@@ -17,42 +17,82 @@
         }
         .container {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
             text-align: center;
         }
         h2 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        p.description {
             margin-bottom: 20px;
+            font-size: 16px;
+            color: #555;
         }
         input[type="file"] {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 16px;
         }
         button {
             background-color: #4CAF50;
             color: white;
             border: none;
-            padding: 10px;
+            padding: 12px 20px;
             border-radius: 5px;
+            font-size: 16px;
             cursor: pointer;
+            transition: background-color 0.3s ease;
         }
         button:hover {
             background-color: #45a049;
         }
         #result {
-            margin-top: 20px;
+            margin-top: 25px;
         }
         img {
-            margin: 10px 0;
+            margin: 15px 0;
             max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        .gif-container img {
+            width: 400px;
+        }
+        .image-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 50px;
+            margin-bottom: 20px;
+        }
+        .image-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        label {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .loading {
+            display: none;
+            font-size: 18px;
+            font-weight: bold;
+            color: #555;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Upload MRI Scans</h2>
+    <h2>Brain Tumor Segmentation</h2>
+    <p class="description">
+        Upload your MRI scans (FLAIR and T1CE) to view the segmentation results that highlight brain tumor regions. The processed GIFs will show the prediction output.
+    </p>
     <form id="uploadForm">
         <label for="flair">FLAIR MRI:</label>
         <input type="file" id="flair" name="flair" accept=".nii,.nii.gz" required><br>
@@ -61,12 +101,14 @@
         <button type="submit">Submit</button>
     </form>
 
-    <div id="result"></div>
+    <div id="loading" class="loading">Processing... Please wait</div>
+    <div id="result" class="gif-container"></div>
 </div>
 
 <script>
     const form = document.getElementById('uploadForm');
     const resultDiv = document.getElementById('result');
+    const loadingDiv = document.getElementById('loading');
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -79,6 +121,10 @@
             return;
         }
 
+
+        loadingDiv.style.display = 'block';
+        resultDiv.innerHTML = '';
+
         const formData = new FormData();
         formData.append('flair', flair);
         formData.append('t1ce', t1ce);
@@ -86,7 +132,6 @@
         const URI = 'http://localhost:8000';
 
         try {
-            // Upload files
             const uploadResponse = await fetch(URI + '/upload', {
                 method: 'POST',
                 body: formData
@@ -100,45 +145,51 @@
             const flair_pth = uploadResult.flair_pth;
             const t1ce_pth = uploadResult.t1ce_pth;
 
-            // Call /get_gif for FLAIR
             const flairGifResponse = await fetch(URI + `/get_gif?pth=${encodeURIComponent(flair_pth)}`);
             if (!flairGifResponse.ok) {
                 throw new Error('Failed to fetch FLAIR GIF');
             }
-            const flairGifBlob = await flairGifResponse.blob();
-            const flairGifUrl = URL.createObjectURL(flairGifBlob);
-            const flairGifImage = document.createElement('img');
-            flairGifImage.src = flairGifUrl;
-            resultDiv.innerHTML = '<p>FLAIR MRI GIF:</p>';
-            resultDiv.appendChild(flairGifImage);
 
-            // Call /get_gif for T1CE
             const t1ceGifResponse = await fetch(URI + `/get_gif?pth=${encodeURIComponent(t1ce_pth)}`);
             if (!t1ceGifResponse.ok) {
                 throw new Error('Failed to fetch T1CE GIF');
             }
-            const t1ceGifBlob = await t1ceGifResponse.blob();
-            const t1ceGifUrl = URL.createObjectURL(t1ceGifBlob);
-            const t1ceGifImage = document.createElement('img');
-            t1ceGifImage.src = t1ceGifUrl;
-            resultDiv.innerHTML += '<p>T1CE MRI GIF:</p>';
-            resultDiv.appendChild(t1ceGifImage);
 
-            // Call /predict for segmentation
             const predictResponse = await fetch(URI + `/predict?flair_pth=${encodeURIComponent(flair_pth)}&t1ce_pth=${encodeURIComponent(t1ce_pth)}`);
             if (!predictResponse.ok) {
                 throw new Error('Prediction failed');
             }
 
+            const flairGifBlob = await flairGifResponse.blob();
+            const flairGifUrl = URL.createObjectURL(flairGifBlob);
+
+            const t1ceGifBlob = await t1ceGifResponse.blob();
+            const t1ceGifUrl = URL.createObjectURL(t1ceGifBlob);
+
             const predictGifBlob = await predictResponse.blob();
             const predictGifUrl = URL.createObjectURL(predictGifBlob);
-            const predictGifImage = document.createElement('img');
-            predictGifImage.src = predictGifUrl;
-            resultDiv.innerHTML += '<p>Segmentation Result GIF:</p>';
-            resultDiv.appendChild(predictGifImage);
+
+            // Display images side by side for FLAIR and T1CE
+            resultDiv.innerHTML = `
+                <div class="image-row">
+                    <div class="image-column">
+                        <p>FLAIR MRI GIF:</p>
+                        <img src="${flairGifUrl}" alt="FLAIR GIF">
+                    </div>
+                    <div class="image-column">
+                        <p>T1CE MRI GIF:</p>
+                        <img src="${t1ceGifUrl}" alt="T1CE GIF">
+                    </div>
+                </div>
+                <p>Segmentation Result GIF:</p>
+                <img src="${predictGifUrl}" alt="Prediction GIF">
+            `;
 
         } catch (error) {
             resultDiv.innerHTML = `<p style="color:red;">${error.message}</p>`;
+        } finally {
+            // Hide loading animation after completion
+            loadingDiv.style.display = 'none';
         }
     });
 </script>
